@@ -44,6 +44,6 @@ typedef struct _IPInfo
 }IPInfo;
 
 uint32_t DNSSend(uint8_t *Domain,DNSInfo *dns);
-IPInfo *DNSRecv(DNSInfo *dns,IPInfo *ip)
+IPInfo *DNSRecv(DNSInfo *dns,IPInfo *ip);
 
 #endif /* MYDNS_H_ */

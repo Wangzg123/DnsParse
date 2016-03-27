@@ -25,8 +25,8 @@ int main(int argc,char **argv)
 		debug_info("DNSSend() error");
 		exit(-1);
 	}
-
-	if(DNSRecv(dnscheck,ip) < 0)
+	ip = DNSRecv(dnscheck,ip);
+	if(ip == NULL)
 	{
 		debug_info("DNSRecv() error");
 		exit(-1);
@@ -34,13 +34,13 @@ int main(int argc,char **argv)
 
 	free(dnscheck);
 
-	while(ip->next != NULL)
-	{
-		printf("ip = %s\n",ip->IP);
-		ip = ip->next;
-	}
-	printf("ip = %s %s ",ip->IP,ip->next->IP);
-
+//	while(ip->next != NULL)
+//	{
+//		printf("ip = %s\n",ip->IP,ip->next);
+//		ip = ip->next;
+//	}
+	printf("ip = %s %s %s\n",ip->IP,ip->next->IP,ip->next->next->IP);
+	free(ip);
 	exit(0);
 }
 

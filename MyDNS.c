@@ -6,6 +6,8 @@
  */
 #include "MyDNS.h"
 
+#define parse(__w,__p) do{*__p = *__w << 8;__w ++;*__p |= *__w;__w ++;}while(0)
+
 void Nowtime()
 {
 	struct timeval tv;
@@ -86,7 +88,7 @@ uint32_t UdpRecv(uint32_t sockfd,uint8_t *buffer,uint32_t len,uint32_t mstimeout
 	return recvlen;
 }
 
-void Package_Sendbuf(uint8_t *Domain,DNSInfo *dns,char *buffer)
+uint32_t Package_Sendbuf(uint8_t *Domain,DNSInfo *dns,uint8_t *buffer)
 {
 	DNSInfo *dns_info = dns;
 	uint32_t i,j = 0,Position = 0;
@@ -97,9 +99,9 @@ void Package_Sendbuf(uint8_t *Domain,DNSInfo *dns,char *buffer)
 	strcpy(dns_info->Domain,Domain);
 	dns_info->Domainlen = strlen(dns_info->Domain);
 
-
 	randbuff[0] = rand();						//ID
 	dns_info->randid = randbuff[0];
+	debug_info("randid = %#x %#x",dns_info->randid,htons(dns_info->randid));
 
 	Position ++;
 	Position ++;
@@ -142,22 +144,23 @@ void Package_Sendbuf(uint8_t *Domain,DNSInfo *dns,char *buffer)
 
 	buffer[Position++] = 0x00;					//Class
 	buffer[Position++] = 0x01;					//Class
+	return Position;
 }
 
 uint32_t DNSSend(uint8_t *Domain,DNSInfo *dns)
 {
 	DNSInfo *dns_info = dns;
 	uint32_t ret = -1;
-	uint32_t sendlen;
+	uint32_t sendlen,buflen;
 	uint8_t buffer[256];
 
 	dns_info->sockfd = UdpOpenNoBlock();
 	if(dns->sockfd < 0)
 		return ret;
 
-	Package_Sendbuf(Domain,dns_info,buffer);
+	buflen = Package_Sendbuf(Domain,dns_info,buffer);
 
-	sendlen = UdpSend(dns_info->sockfd,buffer,strlen(buffer),"192.168.1.1",53);
+	sendlen = UdpSend(dns_info->sockfd,buffer,buflen,"192.168.1.1",53);
 	debug_info("sendlen = %d",sendlen);
 	if(sendlen != strlen(buffer))
 		return ret;
@@ -165,32 +168,40 @@ uint32_t DNSSend(uint8_t *Domain,DNSInfo *dns)
 	return sendlen;
 }
 
-void parse(uint8_t *buffer,uint32_t *param)
+uint32_t parseNAME(uint8_t *buffer,uint8_t *Domain)
 {
-	*param = *buffer << 8;
-	buffer ++;
-	*param |= *buffer;
-	buffer ++;
-}
-
-void parseNAME(uint8_t *buffer,uint8_t *Domain)
-{
-	int i;
-	int j = *buffer;
+	uint32_t i = 0,num = 0,a = 0;
+	uint8_t j = *buffer;
+	debug_info("j = %d",j);
 	do{
 		for(i = 0;i < j;i++)
 		{
-			buffer ++;
-			Domain[i] = *buffer;
+			buffer ++;num++;
+			Domain[a] = *buffer;
+			a++;
 		}
-		buffer ++;
+		Domain[a] = '.';
+		a++;
+		buffer ++;num++;
 		j = *buffer;
 	}while(j != 0);
-	buffer ++;
-	buffer ++;
-	buffer ++;
-	buffer ++;
-	buffer ++;
+
+	num += 5;
+	return num;
+}
+
+void InsertList(IPInfo *ip,uint8_t  *buffer)
+{
+	struct in_addr *netip;
+	IPInfo *iiippp = malloc(sizeof(iiippp));
+
+	netip = (struct in_addr *)buffer;
+
+	iiippp->IP = inet_ntoa(*netip);
+	iiippp->next = ip;
+	debug_info1("ip = %s",iiippp->IP);
+	ip = iiippp;
+
 }
 
 uint32_t Parse_Rcvbuf(DNSInfo *dns,uint8_t *buffer,IPInfo *ip)
@@ -201,7 +212,7 @@ uint32_t Parse_Rcvbuf(DNSInfo *dns,uint8_t *buffer,IPInfo *ip)
 	uint32_t transID;
 	parse(buffer,&transID);
 	debug_info("transID = %#x",transID);
-	if(transID != dns_info->randid)
+	if(transID != ntohs(dns_info->randid))
 	{
 		debug_info("recvbuf error");
 		return ret;
@@ -220,13 +231,17 @@ uint32_t Parse_Rcvbuf(DNSInfo *dns,uint8_t *buffer,IPInfo *ip)
 		parse(buffer,&AnserRRs);
 		debug_info("AnserRRs = %#x",AnserRRs);
 
+		uint32_t Authority;
+		parse(buffer,&Authority);
+		debug_info("AdditionalRRs = %#x",Authority);
+
 		uint32_t AdditionalRRs;
 		parse(buffer,&AdditionalRRs);
 		debug_info("AdditionalRRs = %#x",AdditionalRRs);
 
-		uint8_t *Domain;
-		parseNAME(buffer,Domain);
-		debug_info("Domain = %s",Domain);
+		uint8_t Domain[256];
+		buffer += parseNAME(buffer,Domain);
+		debug_info("Domain = %s %#x",Domain,*buffer);
 
 		//point to name
 		while(*buffer == 0xc0)
@@ -236,22 +251,29 @@ uint32_t Parse_Rcvbuf(DNSInfo *dns,uint8_t *buffer,IPInfo *ip)
 			buffer += 2;				//->TTL;
 			buffer += 4;				//->length
 			buffer += 1;				//->little
+			debug_info("%#x",*buffer);
 			if(*buffer != 4)			//not ip;
 			{
-				buffer += 1;
-				buffer += *buffer;
+				buffer += *buffer + 1;
 			}
 			else						//is ip
 			{
-				IPInfo *iiippp = malloc(sizeof(iiippp));
+/*				IPInfo *iiippp = malloc(sizeof(iiippp));
+				struct in_addr *netip;
 				buffer += 1;
-				ip->IP[0] = *(buffer++);
-				ip->IP[1] = *(buffer++);
-				ip->IP[2] = *(buffer++);
-				ip->IP[4] = *(buffer++);
-				debug_info("ip = %s",ip->IP);
-				ip->next = iiippp;
+				netip = (struct in_addr *)buffer;
+				buffer += 4;
+				iiippp->IP = inet_ntoa(*netip);
+				debug_info1("ip = %s",iiippp->IP);
+				iiippp->next = ip->next;
+				iiippp->next->prev = iiippp;
 				iiippp->prev = ip;
+				ip->next = iiippp;
+				ip = iiippp;*/
+
+				buffer += 1;
+				InsertList(ip,buffer);
+				buffer += 4;
 			}
 		}
 	}
@@ -261,10 +283,13 @@ uint32_t Parse_Rcvbuf(DNSInfo *dns,uint8_t *buffer,IPInfo *ip)
 uint32_t DNSRecv(DNSInfo *dns,IPInfo *ip)
 {
 	uint32_t ret = -1;
-	uint8_t recvbuf[512];
+	uint8_t recvbuf[512] = {0};
 	uint32_t recvlen;
 	DNSInfo *dns_info = dns;
-	recvlen = UdpRecv(dns_info->sockfd,recvbuf,512,0);
+	recvlen = UdpRecv(dns_info->sockfd,recvbuf,512,100);
+//	FILE *fd = fopen("tttt","w+");
+//	fwrite(recvbuf,recvlen,1,fd);
+//	fclose(fd);
 	if(recvlen <= 0)
 		return ret;
 

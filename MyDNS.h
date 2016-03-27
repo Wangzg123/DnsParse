@@ -23,7 +23,10 @@
 #include <errno.h>
 
 #define debug_info(fmt, ... ) \
-	do{Nowtime();printf("[%s][%d]: "fmt"\n",__func__,__LINE__,##__VA_ARGS__);}while(0)
+	do{if(0){Nowtime();printf("[%s][%d]: "fmt"\n",__func__,__LINE__,##__VA_ARGS__);}}while(0)
+
+#define debug_info1(fmt, ... ) \
+	do{if(1){Nowtime();printf("[%s][%d]: "fmt"\n",__func__,__LINE__,##__VA_ARGS__);}}while(0)
 
 typedef struct _DNSInfo
 {
@@ -36,12 +39,11 @@ typedef struct _DNSInfo
 typedef struct _IPInfo
 {
 	struct _IPInfo *next;
-	struct _IPInfo *prev;
 
-	uint8_t IP[4];
+	uint8_t *IP;
 }IPInfo;
 
-uint32_t DNSSend(char *Domain,DNSInfo *dns);
-uint32_t DNSRecv(DNSInfo *dns,IPInfo *ip);
+uint32_t DNSSend(uint8_t *Domain,DNSInfo *dns);
+IPInfo *DNSRecv(DNSInfo *dns,IPInfo *ip)
 
 #endif /* MYDNS_H_ */

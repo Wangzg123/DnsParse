@@ -17,6 +17,8 @@ int main(int argc,char **argv)
 	IPInfo *ip;
 	dnscheck = malloc(sizeof(DNSInfo));
 	ip = malloc(sizeof(IPInfo));
+	ip->IP = "iii";
+	ip->next = NULL;
 
 	if(DNSSend(argv[1],dnscheck) < 0)
 	{
@@ -31,7 +33,14 @@ int main(int argc,char **argv)
 	}
 
 	free(dnscheck);
-	free(ip);
+
+	while(ip->next != NULL)
+	{
+		printf("ip = %s\n",ip->IP);
+		ip = ip->next;
+	}
+	printf("ip = %s %s ",ip->IP,ip->next->IP);
+
 	exit(0);
 }
 

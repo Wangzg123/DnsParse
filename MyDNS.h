@@ -27,14 +27,21 @@
 
 typedef struct _DNSInfo
 {
-	char   *Domain;
-	int32_t Domainlen;
-	int32_t sockfd;
-	int16_t randid;
-
+	uint8_t  	Domain[30];
+	uint32_t 	Domainlen;
+	uint32_t 	sockfd;
+	uint16_t 	randid;
 }DNSInfo;
 
-int32_t DNSSend(char *Domain,DNSInfo *dns);
-int32_t DNSRecv(DNSInfo *dns);
+typedef struct _IPInfo
+{
+	struct _IPInfo *next;
+	struct _IPInfo *prev;
+
+	uint8_t IP[4];
+}IPInfo;
+
+uint32_t DNSSend(char *Domain,DNSInfo *dns);
+uint32_t DNSRecv(DNSInfo *dns,IPInfo *ip);
 
 #endif /* MYDNS_H_ */

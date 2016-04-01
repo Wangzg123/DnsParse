@@ -270,6 +270,22 @@ uint32_t DNSRecv(DNSInfo *dns)
 	return ret;
 }
 
+/*
+int32_t GetIpFromDNS(char *Domain,char *ip)
+{
+	DNSInfo *GetIP;
+	GetIP = malloc(sizoef(DNSInfo));
+	int32_t SendLen;
+	SendLen = DNSSend(Domain,GetIP);
+	if(SendLen == 0)
+	{
+		printf("DNSSend error\n");
+	}
+	DNSRecv(GetIP);
+	free(GetIP);
+	
+}
+*/
 
 
 
